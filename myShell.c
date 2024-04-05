@@ -20,14 +20,12 @@
 void cd(const char *directory);
 char *readline(int input_stream);
 char **tokenize(char *line);
-void command(char** arguments);
+void command(char **arguments);
 void exit_command(char **arguments);
 void pwd(char **arguments);
 void which(char *arguments);
 void execute(char **arguments);
 char **globTokens(char **tokens);
-
-
 
 int main(int argc, char *argv[])
 {
@@ -53,7 +51,7 @@ int main(int argc, char *argv[])
 
     if (interactive_mode)
     {
-        printf("Welcome to mysh!\n");
+        printf("Welcome to my shell!\n");
         fflush(stdout); // Ensure the prompt is printed immediately
     }
 
@@ -73,12 +71,12 @@ int main(int argc, char *argv[])
         }
 
         char **tokens = tokenize(line);
-        char** expandedTokens = globTokens(tokens);
+        char **expandedTokens = globTokens(tokens);
 
         command(expandedTokens);
 
-        free(tokens); 
-        free(line); 
+        free(tokens);
+        free(line);
         free(expandedTokens);
     }
 
@@ -90,16 +88,13 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-void cd(const char *directory)
-{
-    if (directory == NULL)
-    {
+void cd(const char *directory) {
+    if (directory == NULL) {
         fprintf(stderr, "cd: missing argument\n");
         return;
     }
 
-    if (chdir(directory) == -1)
-    {
+    if (chdir(directory) == -1) {
         perror("cd");
     }
 }
@@ -110,11 +105,9 @@ void exit_command(char **arguments) // Renamed exit to exit_command
     {
         printf("%s\n", arguments[i]);
         fflush(stdout); // Ensure the prompt is printed immediately
-
     }
     printf("Exiting my shell\n");
     fflush(stdout); // Ensure the prompt is printed immediately
-
 
     // Terminate the shell
     exit(0);
@@ -122,15 +115,12 @@ void exit_command(char **arguments) // Renamed exit to exit_command
 
 void pwd(char **arguments) {
     char cwd[MAX_COMMAND_LENGTH]; // Buffer to store current working directory
-    if (getcwd(cwd, sizeof(cwd)) != NULL)
-    {
+    if (getcwd(cwd, sizeof(cwd)) != NULL) {
         printf("%s\n", cwd); // Print current working directory
     }
-    else
-    {
+    else {
         perror("getcwd() error");
     }
-
 }
 
 void which(char *program_name) {
@@ -142,7 +132,8 @@ void which(char *program_name) {
 
     // Get the PATH environment variable
     char *path_env = getenv("PATH");
-    if (path_env == NULL) {
+    if (path_env == NULL)
+    {
         printf("Error: PATH environment variable is not set\n");
         return;
     }
@@ -150,13 +141,15 @@ void which(char *program_name) {
     // Tokenize PATH to get individual directories
     char *path_env_copy = strdup(path_env); // Make a copy of path_env
     char *path = strtok(path_env_copy, ":");
-    while (path != NULL) {
+    while (path != NULL)
+    {
         // Construct the full path to the program
         char full_path[MAX_COMMAND_LENGTH];
         snprintf(full_path, sizeof(full_path), "%s/%s", path, program_name);
 
         // Check if the program exists and is executable
-        if (access(full_path, X_OK) == 0) {
+        if (access(full_path, X_OK) == 0)
+        {
             printf("%s\n", full_path);
             free(path_env_copy); // Free the copy of path_env
             return;
@@ -197,7 +190,7 @@ char *readline(int input_stream)
                 free(input);
                 return NULL;
             }
-            break; 
+            break;
         }
 
         if (c == '\n')
@@ -208,7 +201,7 @@ char *readline(int input_stream)
         if (index >= MAX_COMMAND_LENGTH - 1)
         {
             printf("User input too long. Please input args less than 1024 characters.\n");
-            break; // Prevent buffer overflow
+            break;
         }
 
         input[index++] = c; // Store character in input buffer
@@ -218,46 +211,51 @@ char *readline(int input_stream)
     return input;
 }
 
-char **tokenize(char *line) {
+char **tokenize(char *line)
+{
     int i = 0;
     char **arguments = malloc(sizeof(char *) * MAX_TOKENS);
     const char *delimiters = " "; // Include <, >, |, and whitespace characters
     char *token = strtok(line, delimiters);
 
-    while (token != NULL) {
-        // Find the position of the special character in the token
+    while (token != NULL)
+    {
+
         char *special_char = strpbrk(token, "<>|");
-        if (special_char != NULL) {
-            // Store the special character before it gets replaced by '\0'
+        if (special_char != NULL)
+        {
             char special_char_value = *special_char;
 
             // If the special character is at the beginning of the token, add it separately
-            if (special_char == token) {
+            if (special_char == token)
+            {
                 arguments[i] = malloc(2); // One character and null terminator
-                arguments[i][0] = special_char_value; // Store the special character value
-                arguments[i][1] = '\0'; // Null-terminate the string
+                arguments[i][0] = special_char_value;
+                arguments[i][1] = '\0';
                 i++;
-                
-                // Move to the next part of the string after the special character
+
                 token = special_char + 1;
-            } else {
-                // Split the token at the special character and add each part as a separate token
+            }
+            else
+            {
                 *special_char = '\0'; // Replace the special character with null terminator
                 arguments[i] = strdup(token);
                 i++;
-                
+
                 // Add the special character token
-                arguments[i] = malloc(2); // One character and null terminator
+                arguments[i] = malloc(2);             // One character and null terminator
                 arguments[i][0] = special_char_value; // Store the special character value
-                arguments[i][1] = '\0'; // Null-terminate the string
+                arguments[i][1] = '\0';               // Null-terminate the string
                 i++;
-                
+
                 // Move to the next part of the string after the special character
                 token = special_char + 1;
             }
-        } else {
-            // If no special character found and the token is not empty, add it
-            if (*token != '\0') {
+        }
+        else
+        {
+            if (*token != '\0')
+            {
                 arguments[i] = strdup(token);
                 i++;
             }
@@ -266,14 +264,28 @@ char **tokenize(char *line) {
     }
     arguments[i] = NULL;
 
-    for (int j = 0; arguments[j] != NULL; j++) {
-        printf("%s \n", arguments[j]);
-    }
     return arguments;
 }
-void command(char** arguments) {
+
+void command(char **arguments) {
+    static int previous_exit_status = 0; // Initialize previous exit status
+
     if (arguments == NULL || arguments[0] == NULL) {
         return; // No command to execute
+    }
+
+    // Check if the command is a conditional (then or else)
+    if (strcmp(arguments[0], "then") == 0 || strcmp(arguments[0], "else") == 0) {
+        printf("we got else, previous exit status: %d\n", previous_exit_status);
+        if ((strcmp(arguments[0], "then") == 0 && previous_exit_status != 1) ||
+            (strcmp(arguments[0], "else") == 0 && previous_exit_status == 1)) {
+            int i = 1;
+            while (arguments[i] != NULL) {
+                command(arguments + i);
+                i++;
+            }
+        }
+        return;
     }
 
     if (strcmp(arguments[0], "cd") == 0) {
@@ -289,115 +301,134 @@ void command(char** arguments) {
     } else {
         execute(arguments);
     }
+
+    // Set previous_exit_status based on the exit status of the executed command
+    int status;
+    wait(&status);
+    if (WIFEXITED(status)) {
+        previous_exit_status = WEXITSTATUS(status);
+    } else {
+        previous_exit_status = 1; // Command execution failed
+    }
 }
 
 void execute(char **arguments) {
     pid_t pid = fork();
-    if (pid < 0) {
+    if (pid < 0){
         perror("fork");
         exit(EXIT_FAILURE);
-    } else if (pid == 0) {
-        // Child process
-        // Check for file redirection
+    }
+    else if (pid == 0){
         int input_fd = STDIN_FILENO;
         int output_fd = STDOUT_FILENO;
-        for (int i = 0; arguments[i] != NULL; i++) {
-            if (strcmp(arguments[i], "<") == 0) {
+        for (int i = 0; arguments[i] != NULL; i++){
+            if (strcmp(arguments[i], "<") == 0){
                 // Input redirection
                 input_fd = open(arguments[i + 1], O_RDONLY);
-                if (input_fd == -1) {
+                if (input_fd == -1)
+                {
                     perror("open");
                     exit(EXIT_FAILURE);
                 }
                 // Remove the "<" and filename tokens
                 arguments[i] = NULL;
                 arguments[i + 1] = NULL;
-            } else if (strcmp(arguments[i], ">") == 0) {
+            }
+            else if (strcmp(arguments[i], ">") == 0){
                 // Output redirection
                 output_fd = open(arguments[i + 1], O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP);
-                if (output_fd == -1) {
+                if (output_fd == -1)
+                {
                     perror("open");
                     exit(EXIT_FAILURE);
                 }
                 // Remove the ">" and filename tokens
                 arguments[i] = NULL;
                 arguments[i + 1] = NULL;
+            } else if (strcmp(arguments[i], "|") == 0) {
+                
             }
         }
         // Redirect file descriptors
-        if (dup2(input_fd, STDIN_FILENO) == -1) {
+        if (dup2(input_fd, STDIN_FILENO) == -1){
             perror("dup2");
             exit(EXIT_FAILURE);
         }
-        if (dup2(output_fd, STDOUT_FILENO) == -1) {
+        if (dup2(output_fd, STDOUT_FILENO) == -1){
             perror("dup2");
             exit(EXIT_FAILURE);
         }
         // Close file descriptors if they were changed
-        if (input_fd != STDIN_FILENO) {
+        if (input_fd != STDIN_FILENO){
             close(input_fd);
         }
-        if (output_fd != STDOUT_FILENO) {
+        if (output_fd != STDOUT_FILENO){
             close(output_fd);
         }
         // Execute the command
-        if (arguments[0][0] == '/') {
+        if (arguments[0][0] == '/'){
             // Pathname provided, execute directly
             execv(arguments[0], arguments);
-        } else {
+        }
+        else{
             // Bare name provided, search in specified directories
             const char *directories[] = {"/usr/local/bin", "/usr/bin", "/bin", NULL};
-            for (int i = 0; directories[i] != NULL; ++i) {
-                // Construct the full path to the executable
+            for (int i = 0; directories[i] != NULL; ++i){
                 char full_path[MAX_COMMAND_LENGTH];
                 snprintf(full_path, sizeof(full_path), "%s/%s", directories[i], arguments[0]);
-                // Check if the executable exists
-                if (access(full_path, X_OK) == 0) {
+                if (access(full_path, X_OK) == 0){
                     // Execute the executable
                     execv(full_path, arguments);
                 }
             }
-            // If execution reaches here, the executable was not found
             fprintf(stderr, "Error: '%s' not found\n", arguments[0]);
             exit(EXIT_FAILURE);
         }
-    } else {
-        // Parent process
-        // Wait for the child process to complete
+    }
+    else {
         int status;
         waitpid(pid, &status, 0);
     }
 }
 
-char **globTokens(char **tokens) {
+char **globTokens(char **tokens)
+{
     char **expandedTokens = malloc(sizeof(char *) * (MAX_TOKENS + 1)); // +1 for NULL terminator
     int index = 0;
 
     // Iterate through each token
-    for (int i = 0; tokens[i] != NULL; i++) {
+    for (int i = 0; tokens[i] != NULL; i++)
+    {
         char *token = tokens[i];
         glob_t glob_result;
 
         char *asterisk_position = strchr(token, '*');
-        if (asterisk_position != NULL){
+        if (asterisk_position != NULL)
+        {
             int glob_status = glob(token, 0, NULL, &glob_result);
 
-            if (glob_status == 0) {
-                for (size_t j = 0; j < glob_result.gl_pathc; j++) {
+            if (glob_status == 0)
+            {
+                for (size_t j = 0; j < glob_result.gl_pathc; j++)
+                {
                     // Allocate memory for the matched filename
                     expandedTokens[index] = strdup(glob_result.gl_pathv[j]);
                     index++;
                 }
                 globfree(&glob_result);
-            } else if (glob_status == GLOB_NOMATCH) {
+            }
+            else if (glob_status == GLOB_NOMATCH)
+            {
                 printf("zsh: no matches found: %s\n", token);
                 return NULL;
-
-
-            } else {
+            }
+            else
+            {
                 printf("Error occurred during globbing.\n");
             }
-        } else {
+        }
+        else
+        {
             // If no asterisk, add the token unchanged
             expandedTokens[index] = strdup(token);
             index++;
