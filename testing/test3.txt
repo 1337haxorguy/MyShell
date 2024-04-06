@@ -1,0 +1,3 @@
+ls > ./testing/newFile.txt
+wc ./testing/test.txt
+wc < ./testing/test.txt

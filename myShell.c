@@ -21,52 +21,49 @@ void cd(const char *directory);
 char *readline(int input_stream);
 char **tokenize(char *line);
 void command(char **arguments);
-void exit_command(char **arguments);
+void exitCommand(char **arguments);
 void pwd(char **arguments);
 void which(char *arguments);
 void execute(char **arguments);
 char **globTokens(char **tokens);
 
-int main(int argc, char *argv[])
-{
-    system("clear");
+int previous_exit_status = 1;
+int interactive_mode = 0;
+
+int main(int argc, char *argv[]) {
     int interactive_mode = isatty(STDIN_FILENO);
     int input_stream;
 
+    if (!interactive_mode) {
+        system("clear");
+    }
+
     // Determine input stream
-    if (argc == 2)
-    {
+    if (argc == 2) {
         input_stream = open(argv[1], O_RDONLY);
-        if (input_stream == -1)
-        {
+        if (input_stream == -1) {
             perror("Error opening file");
             return 1;
         }
         interactive_mode = 0; // Batch mode
     }
-    else
-    {
+    else {
         input_stream = STDIN_FILENO;
     }
 
-    if (interactive_mode)
-    {
+    if (interactive_mode) {
         printf("Welcome to my shell!\n");
         fflush(stdout); // Ensure the prompt is printed immediately
     }
 
-    while (1)
-    {
-        if (interactive_mode)
-        {
+    while (1) {
+        if (interactive_mode) {
             printf("mysh> ");
             fflush(stdout); // Ensure the prompt is printed immediately
         }
         // Read a line from the input stream
         char *line = readline(input_stream);
-        if (line == NULL)
-        {
-            // Error or end of file occurred
+        if (line == NULL) {
             break;
         }
 
@@ -80,8 +77,7 @@ int main(int argc, char *argv[])
         free(expandedTokens);
     }
 
-    if (argc == 2)
-    {
+    if (argc == 2) {
         close(input_stream);
     }
 
@@ -90,26 +86,28 @@ int main(int argc, char *argv[])
 
 void cd(const char *directory) {
     if (directory == NULL) {
+        previous_exit_status = 1;
         fprintf(stderr, "cd: missing argument\n");
         return;
     }
 
     if (chdir(directory) == -1) {
+        previous_exit_status = 1;
         perror("cd");
     }
 }
 
-void exit_command(char **arguments) // Renamed exit to exit_command
-{
-    for (int i = 1; arguments[i] != NULL; i++)
-    {
+void exitCommand(char **arguments) {
+    for (int i = 1; arguments[i] != NULL; i++) {
         printf("%s\n", arguments[i]);
-        fflush(stdout); // Ensure the prompt is printed immediately
+        fflush(stdout); 
     }
-    printf("Exiting my shell\n");
-    fflush(stdout); // Ensure the prompt is printed immediately
 
-    // Terminate the shell
+    if (!interactive_mode) {
+        printf("Exiting my shell\n");
+        fflush(stdout);
+    }
+
     exit(0);
 }
 
@@ -119,87 +117,70 @@ void pwd(char **arguments) {
         printf("%s\n", cwd); // Print current working directory
     }
     else {
+        previous_exit_status = 1;
         perror("getcwd() error");
     }
 }
 
 void which(char *program_name) {
-    // Check if the provided program name is a built-in
     if (strcmp(program_name, "cd") == 0 || strcmp(program_name, "exit") == 0 || strcmp(program_name, "pwd") == 0) {
         printf("Error: '%s' is a built-in command\n", program_name);
+        previous_exit_status = 1;
         return;
     }
 
-    // Get the PATH environment variable
     char *path_env = getenv("PATH");
-    if (path_env == NULL)
-    {
+    if (path_env == NULL) {
         printf("Error: PATH environment variable is not set\n");
         return;
     }
-
-    // Tokenize PATH to get individual directories
-    char *path_env_copy = strdup(path_env); // Make a copy of path_env
+    char *path_env_copy = strdup(path_env);
     char *path = strtok(path_env_copy, ":");
-    while (path != NULL)
-    {
-        // Construct the full path to the program
+    while (path != NULL) {
         char full_path[MAX_COMMAND_LENGTH];
         snprintf(full_path, sizeof(full_path), "%s/%s", path, program_name);
 
-        // Check if the program exists and is executable
-        if (access(full_path, X_OK) == 0)
-        {
+        if (access(full_path, X_OK) == 0) {
             printf("%s\n", full_path);
-            free(path_env_copy); // Free the copy of path_env
+            free(path_env_copy); 
             return;
         }
-
-        // Move to the next directory in PATH
         path = strtok(NULL, ":");
     }
 
-    // Program not found in any directory in PATH
+    previous_exit_status = 1;
     printf("Error: '%s' not found in PATH\n", program_name);
-    free(path_env_copy); // Free the copy of path_env
-}
+    free(path_env_copy); 
+} 
 
-char *readline(int input_stream)
-{
+char *readline(int input_stream) {
     char *input = malloc(sizeof(char) * MAX_COMMAND_LENGTH);
 
     int index = 0;
     char c;
 
-    while (1)
-    {
+    while (1) {
         ssize_t bytes_read = read(input_stream, &c, 1);
 
-        if (bytes_read == -1)
-        {
+        if (bytes_read == -1) {
             perror("read");
             free(input); // Free allocated memory before returning NULL
             return NULL;
         }
-        else if (bytes_read == 0)
-        {
+        else if (bytes_read == 0) {
             // End of file reached
-            if (index == 0)
-            {
-                // No input was read, return NULL to indicate end of input
+            if (index == 0) {
                 free(input);
                 return NULL;
             }
             break;
         }
 
-        if (c == '\n')
-        {
+        if (c == '\n') {
             break; // End loop when newline is encountered
         }
 
-        if (index >= MAX_COMMAND_LENGTH - 1)
-        {
+        if (index >= MAX_COMMAND_LENGTH - 1) {
             printf("User input too long. Please input args less than 1024 characters.\n");
             break;
         }
@@ -211,51 +192,43 @@ char *readline(int input_stream)
     return input;
 }
 
-char **tokenize(char *line)
-{
+char **tokenize(char *line) {
     int i = 0;
     char **arguments = malloc(sizeof(char *) * MAX_TOKENS);
-    const char *delimiters = " "; // Include <, >, |, and whitespace characters
+    const char *delimiters = " ";
     char *token = strtok(line, delimiters);
 
-    while (token != NULL)
-    {
-
+    while (token != NULL) {
         char *special_char = strpbrk(token, "<>|");
-        if (special_char != NULL)
-        {
+        if (special_char != NULL) {
             char special_char_value = *special_char;
 
-            // If the special character is at the beginning of the token, add it separately
-            if (special_char == token)
-            {
-                arguments[i] = malloc(2); // One character and null terminator
+            //if special character is at the beginning of the token, add it separately
+            if (special_char == token) {
+                arguments[i] = malloc(2); // one character and \n
                 arguments[i][0] = special_char_value;
                 arguments[i][1] = '\0';
                 i++;
 
                 token = special_char + 1;
             }
-            else
-            {
+            else {
                 *special_char = '\0'; // Replace the special character with null terminator
                 arguments[i] = strdup(token);
                 i++;
 
                 // Add the special character token
-                arguments[i] = malloc(2);             // One character and null terminator
-                arguments[i][0] = special_char_value; // Store the special character value
-                arguments[i][1] = '\0';               // Null-terminate the string
+                arguments[i] = malloc(2);             
+                arguments[i][0] = special_char_value; 
+                arguments[i][1] = '\0';               
                 i++;
 
                 // Move to the next part of the string after the special character
                 token = special_char + 1;
             }
         }
-        else
-        {
-            if (*token != '\0')
-            {
+        else {
+            if (*token != '\0') {
                 arguments[i] = strdup(token);
                 i++;
             }
@@ -268,15 +241,11 @@ char **tokenize(char *line)
 }
 
 void command(char **arguments) {
-    static int previous_exit_status = 0; // Initialize previous exit status
-
     if (arguments == NULL || arguments[0] == NULL) {
-        return; // No command to execute
+        return;
     }
 
-    // Check if the command is a conditional (then or else)
     if (strcmp(arguments[0], "then") == 0 || strcmp(arguments[0], "else") == 0) {
-        printf("we got else, previous exit status: %d\n", previous_exit_status);
         if ((strcmp(arguments[0], "then") == 0 && previous_exit_status != 1) ||
             (strcmp(arguments[0], "else") == 0 && previous_exit_status == 1)) {
             int i = 1;
@@ -287,108 +256,267 @@ void command(char **arguments) {
         }
         return;
     }
-
-    if (strcmp(arguments[0], "cd") == 0) {
-        if (arguments[1] != NULL) {
-            cd(arguments[1]);
-        }
-    } else if (strcmp(arguments[0], "exit") == 0) {
-        exit_command(arguments);
-    } else if (strcmp(arguments[0], "pwd") == 0) {
-        pwd(arguments);
-    } else if (strcmp(arguments[0], "which") == 0) {
-        which(arguments[1]);
-    } else {
-        execute(arguments);
-    }
-
-    // Set previous_exit_status based on the exit status of the executed command
-    int status;
-    wait(&status);
-    if (WIFEXITED(status)) {
-        previous_exit_status = WEXITSTATUS(status);
-    } else {
-        previous_exit_status = 1; // Command execution failed
-    }
+    execute(arguments);
 }
 
-void execute(char **arguments) {
-    pid_t pid = fork();
-    if (pid < 0){
-        perror("fork");
-        exit(EXIT_FAILURE);
+void execute(char **arguments)
+{
+    int pipe_index = -1;
+    int input_redirection = 0;
+    int output_redirection = 0;
+    char *input_file = NULL;
+    char *output_file = NULL;
+
+    // Find the index of the pipe character '|' and redirection symbols '<' and '>'
+    for (int i = 0; arguments[i] != NULL; i++) {
+        if (strcmp(arguments[i], "|") == 0) {
+            pipe_index = i;
+        }
     }
-    else if (pid == 0){
-        int input_fd = STDIN_FILENO;
-        int output_fd = STDOUT_FILENO;
-        for (int i = 0; arguments[i] != NULL; i++){
-            if (strcmp(arguments[i], "<") == 0){
-                // Input redirection
-                input_fd = open(arguments[i + 1], O_RDONLY);
-                if (input_fd == -1)
+    
+    if (pipe_index != -1) {
+        // Split the command into two parts: before and after the pipe
+        char **command1 = malloc(sizeof(char *) * (pipe_index + 1));
+        char **command2 = malloc(sizeof(char *) * (MAX_TOKENS - pipe_index));
+
+        // Copy the first part of the command
+        for (int i = 0; i < pipe_index; i++)
+        {
+            command1[i] = strdup(arguments[i]);
+        }
+        command1[pipe_index] = NULL;
+
+        // Copy the second part of the command
+        int j = 0;
+        for (int i = pipe_index + 1; arguments[i] != NULL; i++)
+        {
+            command2[j++] = strdup(arguments[i]);
+        }
+        command2[j] = NULL;
+
+        // Create a pipe
+        int fd[2];
+        if (pipe(fd) == -1)
+        {
+            perror("pipe");
+            exit(EXIT_FAILURE);
+        }
+
+        // Fork a child process to execute the first command
+        pid_t pid1 = fork();
+        if (pid1 == -1)
+        {
+            perror("fork");
+            exit(EXIT_FAILURE);
+        }
+        else if (pid1 == 0)
+        {
+            // Child process: redirect stdout to the write end of the pipe
+            close(fd[0]); // Close the read end of the pipe
+            dup2(fd[1], STDOUT_FILENO);
+            close(fd[1]); // Close the write end of the pipe
+            // Execute the first command
+            execute(command1);
+            exit(EXIT_SUCCESS);
+        }
+        else
+        {
+            // Parent process: fork another child process to execute the second command
+            pid_t pid2 = fork();
+            if (pid2 == -1)
+            {
+                perror("fork");
+                exit(EXIT_FAILURE);
+            }
+            else if (pid2 == 0)
+            {
+                // Child process: redirect stdin to the read end of the pipe
+                close(fd[1]); // Close the write end of the pipe
+                dup2(fd[0], STDIN_FILENO);
+                close(fd[0]); // Close the read end of the pipe
+                // Execute the second command
+                execute(command2);
+                exit(EXIT_SUCCESS);
+            }
+            else
+            {
+                // Parent process: close both ends of the pipe and wait for children to finish
+                close(fd[0]);
+                close(fd[1]);
+                waitpid(pid1, NULL, 0);
+                waitpid(pid2, NULL, 0);
+                // Free memory allocated for command parts
+                for (int i = 0; command1[i] != NULL; i++)
                 {
+                    free(command1[i]);
+                }
+                for (int i = 0; command2[i] != NULL; i++)
+                {
+                    free(command2[i]);
+                }
+                free(command1);
+                free(command2);
+                return;
+            }
+        }
+    }
+
+    for (int i = 0; arguments[i] != NULL; i++) {
+        if (strcmp(arguments[i], "<") == 0) {
+            input_redirection = i;
+            input_file = arguments[i + 1]; // Next token is the input file
+            // Remove '<' and the filename from arguments
+            for (int j = i; arguments[j] != NULL; j++)
+            {
+                arguments[j] = arguments[j + 2];
+            }
+            i -= 2; // Adjust i to account for the removed tokens
+        }
+        else if (strcmp(arguments[i], ">") == 0)
+        {
+            output_redirection = i;
+            output_file = arguments[i + 1]; // Next token is the output file
+            // Remove '>' and the filename from arguments
+            for (int j = i; arguments[j] != NULL; j++)
+            {
+                arguments[j] = arguments[j + 2];
+            }
+            i -= 2; // Adjust i to account for the removed tokens
+        }
+
+    }
+
+        if (input_redirection) {
+            pid_t input_pid = fork();
+            if (input_pid == -1) {
+                perror("fork");
+                exit(EXIT_FAILURE);
+            } else if (input_pid == 0) {
+                int fd_in = open(input_file, O_RDONLY);
+                if (fd_in == -1) {
                     perror("open");
                     exit(EXIT_FAILURE);
                 }
-                // Remove the "<" and filename tokens
-                arguments[i] = NULL;
-                arguments[i + 1] = NULL;
+                if (dup2(fd_in, STDIN_FILENO) == -1) {
+                    perror("dup2");
+                    exit(EXIT_FAILURE);
+                }
+                close(fd_in);  // Close the file descriptor
+                execute(arguments);  // Execute recursively
+                exit(EXIT_SUCCESS);
             }
-            else if (strcmp(arguments[i], ">") == 0){
-                // Output redirection
-                output_fd = open(arguments[i + 1], O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP);
-                if (output_fd == -1)
-                {
+        }
+
+        // Fork a child process for output redirection
+        if (output_redirection) {
+            pid_t output_pid = fork();
+            if (output_pid == -1) {
+                perror("fork");
+                exit(EXIT_FAILURE);
+            } else if (output_pid == 0) {
+                int fd_out = open(output_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+                if (fd_out == -1) {
                     perror("open");
                     exit(EXIT_FAILURE);
                 }
-                // Remove the ">" and filename tokens
-                arguments[i] = NULL;
-                arguments[i + 1] = NULL;
-            } else if (strcmp(arguments[i], "|") == 0) {
-                
+                if (dup2(fd_out, STDOUT_FILENO) == -1) {
+                    perror("dup2");
+                    exit(EXIT_FAILURE);
+                }
+                close(fd_out);  // Close the file descriptor
+                execute(arguments);  // Execute recursively
+                exit(EXIT_SUCCESS);
             }
         }
-        // Redirect file descriptors
-        if (dup2(input_fd, STDIN_FILENO) == -1){
-            perror("dup2");
-            exit(EXIT_FAILURE);
+
+        // Wait for child processes to finish
+        if (input_redirection) {
+            wait(NULL);
         }
-        if (dup2(output_fd, STDOUT_FILENO) == -1){
-            perror("dup2");
-            exit(EXIT_FAILURE);
+        if (output_redirection) {
+            wait(NULL);
         }
-        // Close file descriptors if they were changed
-        if (input_fd != STDIN_FILENO){
-            close(input_fd);
-        }
-        if (output_fd != STDOUT_FILENO){
-            close(output_fd);
-        }
-        // Execute the command
-        if (arguments[0][0] == '/'){
-            // Pathname provided, execute directly
+if (!output_redirection && !input_redirection) {
+    // If no pipe found, execute the command as usual
+    if (strcmp(arguments[0], "cd") == 0)
+    {
+        cd(arguments[1]);
+    }
+    else if (strcmp(arguments[0], "exit") == 0)
+    {
+        exitCommand(arguments);
+    }
+    else if (strcmp(arguments[0], "pwd") == 0)
+    {
+        pwd(arguments);
+    }
+    else if (strcmp(arguments[0], "which") == 0)
+    {
+        which(arguments[1]);
+    }
+    else if (arguments[0][0] == '/')
+    {
+        // Fork a child process
+        pid_t pid = fork();
+        if (pid == 0)
+        {
+            // Child process: execute the command
             execv(arguments[0], arguments);
+            // If execv fails, print an error message and exit child process
+            perror("execv");
         }
-        else{
-            // Bare name provided, search in specified directories
-            const char *directories[] = {"/usr/local/bin", "/usr/bin", "/bin", NULL};
-            for (int i = 0; directories[i] != NULL; ++i){
-                char full_path[MAX_COMMAND_LENGTH];
-                snprintf(full_path, sizeof(full_path), "%s/%s", directories[i], arguments[0]);
-                if (access(full_path, X_OK) == 0){
-                    // Execute the executable
+        else
+        {
+            // Parent process: wait for the child process to finish
+            int status;
+            waitpid(pid, &status, 0);
+            // Update previous_exit_status based on the exit status of the child process
+            if (WIFEXITED(status))
+            {
+                previous_exit_status = WEXITSTATUS(status);
+            }
+        }
+        return;
+    }
+    else
+    {
+        // Search for the command in specified directories and execute it
+        const char *directories[] = {"/usr/local/bin", "/usr/bin", "/bin", NULL};
+        for (int i = 0; i < 3; ++i)
+        {
+            char full_path[MAX_COMMAND_LENGTH];
+            snprintf(full_path, sizeof(full_path), "%s/%s", directories[i], arguments[0]);
+            if (access(full_path, X_OK) == 0)
+            {
+                // Fork a child process
+                pid_t pid = fork();
+                if (pid == 0)
+                {
+                    // Child process: execute the command
                     execv(full_path, arguments);
+                    // If execv fails, print an error message and exit child process
+                    perror("execv");
+                }
+                else
+                {
+                    // Parent process: wait for the child process to finish
+                    int status;
+                    waitpid(pid, &status, 0);
+                    // Update previous_exit_status based on the exit status of the child process
+                    if (WIFEXITED(status))
+                    {
+                        previous_exit_status = WEXITSTATUS(status);
+                    }
+                    return;
                 }
             }
-            fprintf(stderr, "Error: '%s' not found\n", arguments[0]);
-            exit(EXIT_FAILURE);
         }
+        // If the command is not found in any directory, print an error message and update previous_exit_status
+        fprintf(stderr, "Error: '%s' not found\n", arguments[0]);
+        previous_exit_status = 1;
     }
-    else {
-        int status;
-        waitpid(pid, &status, 0);
-    }
+}
+    return;
 }
 
 char **globTokens(char **tokens)

@@ -1,3 +1,0 @@
-ls
-then exit whoops
-bar

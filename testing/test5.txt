@@ -1,0 +1,4 @@
+cd directoryThatDoesNotExist
+else ls
+then pwd
+else ls

@@ -1,0 +1,3 @@
+ls | wc
+cd testing
+ls | grep test

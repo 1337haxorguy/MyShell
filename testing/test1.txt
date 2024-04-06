@@ -1,0 +1,5 @@
+pwd
+cd testing
+pwd
+which ls
+exit
