@@ -33,7 +33,14 @@ Testing Plan:
    To test if a then statement works after an else statement
    To test if an else statement works after a successful statement
 
-The process:
+Testing Inputs:
+./mysh ./testing/test1.txt
+./mysh ./testing/test2.txt
+./mysh ./testing/test3.txt
+./mysh ./testing/test4.txt
+./mysh ./testing/test5.txt
+
+The Process:
 
 1. Check the arguments to see if we should be in interactive mode or batch mode
 2. Read lines line by line in from the input stream until there are none
